@@ -175,7 +175,7 @@ SecOC_RxSecuredPduCollectionType SecOC_RxSecuredPduCollection[] =
         SECOC_SECURED_RX_PDU_VERIFICATION,
         &SecOC_RxAuthenticPdu[0],
         &SecOC_RxCryptographicPdu[0],
-        &SecOC_UseMessageLink
+        &SecOC_UseMessageLink[0]
     },
 };
 

@@ -2,6 +2,8 @@
 #include "SecOC.h"
 #include "SecOC_Debug.h"
 
+extern void SecOC_test();
+
 int main(void)
 {
     #ifdef DEBUG_ALL

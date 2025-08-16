@@ -28,4 +28,14 @@ char* GUIInterface_transmit(uint8_t configId);
 char* GUIInterface_receive(uint8_t* rxId , uint8_t* finalRxLen);
 
 
+// External function declarations
+extern void ethernet_init(void);
+extern Std_ReturnType FVM_IncreaseCounter(uint16 SecOCFreshnessValueID);
+extern Std_ReturnType PduR_SecOCTransmit(PduIdType TxPduId, const PduInfoType* PduInfoPtr);
+extern void CanTp_MainFunctionTx(void);
+extern void SoAd_MainFunctionTx(void);
+extern void PduR_CanIfRxIndication(PduIdType RxPduId, const PduInfoType* PduInfoPtr);
+extern void CanTp_RxIndication (PduIdType RxPduId, const PduInfoType* PduInfoPtr);
+extern void CanTp_MainFunctionRx(void);
+
 #endif

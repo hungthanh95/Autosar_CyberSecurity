@@ -3,12 +3,20 @@ set(CMAKE_BUILD_TYPE Debug)
 
 
 if (WIN32)
+    # Thêm định nghĩa để code nhận biết Windows
+    add_definitions(-D_WIN32)
+
     file(GLOB_RECURSE SCR_FILES CONFIGURE_DEPENDS "source/*.c")
     file(GLOB_RECURSE HDR_FILES CONFIGURE_DEPENDS "include/*.h")
-    list(REMOVE_ITEM SCR_FILES "${CMAKE_SOURCE_DIR}/source/Ethernet/ethernet.c")
-    list(REMOVE_ITEM HDR_FILES "${CMAKE_SOURCE_DIR}/include/Ethernet/ethernet.h")
-    list(REMOVE_ITEM SCR_FILES "${CMAKE_SOURCE_DIR}/source/Ethernet/scheduler.c")
-    list(REMOVE_ITEM HDR_FILES "${CMAKE_SOURCE_DIR}/include/Ethernet/scheduler.h")
+    # list(REMOVE_ITEM SCR_FILES "${CMAKE_SOURCE_DIR}/source/Ethernet/ethernet.c")
+    # list(REMOVE_ITEM HDR_FILES "${CMAKE_SOURCE_DIR}/include/Ethernet/ethernet.h")
+    # list(REMOVE_ITEM SCR_FILES "${CMAKE_SOURCE_DIR}/source/Ethernet/scheduler.c")
+    # list(REMOVE_ITEM HDR_FILES "${CMAKE_SOURCE_DIR}/include/Ethernet/scheduler.h")
+    # Đảm bảo compiler flags phù hợp với MinGW
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -DDEBUG_ALL -DSECOC_DEBUG")
+    
+    # Thêm thư viện ws2_32 cho Windows sockets
+    link_libraries(ws2_32)
 elseif(UNIX)
     file(GLOB_RECURSE SCR_FILES CONFIGURE_DEPENDS  "source/*.c")
     file(GLOB_RECURSE HDR_FILES CONFIGURE_DEPENDS  "include/*.h")

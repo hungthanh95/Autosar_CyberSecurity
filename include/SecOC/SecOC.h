@@ -276,6 +276,9 @@ Std_ReturnType SecOC_GetRxFreshness(uint16 SecOCFreshnessValueID, const uint8* S
 uint32 SecOCTruncatedFreshnessValueLength, uint16 SecOCAuthVerifyAttempts, uint8* SecOCFreshnessValue,
 uint32* SecOCFreshnessValueLength);
 
+//External function declarations
+extern void ethernet_ReceiveMainFunction(void);
+extern void SoAd_MainFunctionRx(void);
 
 
 #endif  /* INCLUDE_SECOC_H_*/

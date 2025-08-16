@@ -48,6 +48,9 @@ static PduLengthType bufferRemainIndex[SECOC_NUM_OF_TX_PDU_PROCESSING] = {0};
 STATIC PduLengthType authRecieveLength[SECOC_NUM_OF_RX_PDU_PROCESSING] = {0};
 
 
+//External function declarations
+extern void ethernet_ReceiveMainFunction(void);
+extern void SoAd_MainFunctionRx(void);
 
 /********************************************************************************************************/
 /************************************InternalFunctionsPrototype******************************************/
@@ -1263,10 +1266,10 @@ void SecOC_test()
         #ifdef SECOC_DEBUG
             printf("############### Starting Receive ###############\n");
         #endif
-        ethernet_RecieveMainFunction();
+        ethernet_ReceiveMainFunction();
         CanTp_MainFunctionRx();
         SoAd_MainFunctionRx();
-        SecOCMainFunctionRx();
+        SecOC_MainFunctionRx();
     }
     
 }

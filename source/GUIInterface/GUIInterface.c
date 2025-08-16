@@ -5,6 +5,11 @@
 #include "SecOC.h"
 #include "SecOC_Lcfg.h"
 #include "Std_Types.h"
+#include "GUIInterface.h"
+
+// Thêm các includes mới
+#include "Ethernet/ethernet.h"  // cho ethernet_init
+#include "SoAd/SoAd.h"         // cho SoAd_MainFunctionTx
 
 
 /********************************************************************************************************/
@@ -252,14 +257,21 @@ char* GUIInterface_transmit(uint8_t configId)
 
 char* GUIInterface_receive(uint8_t* rxId , uint8_t* finalRxLen)
 {
-    Std_ReturnType result;
+    Std_ReturnType result = E_NOT_OK;
 
     /* TO BE IMPLEMENTED*/
-    #ifdef __linux__
+    #if defined(__linux__) || defined(_WIN32)
         #define BUS_LENGTH_RECEIVE 8
         static uint8 dataRecieve [BUS_LENGTH_RECEIVE];
         uint16 id;
-        ethernet_receive(dataRecieve , BUS_LENGTH_RECEIVE, &id);
+        result = ethernet_receive(dataRecieve , BUS_LENGTH_RECEIVE, &id);
+        
+        if(result != E_OK) {
+            *rxId = 0;
+            *finalRxLen = 0;
+            return errorString(result);
+        }
+        
         PduInfoType PduInfoPtr = {
             .SduDataPtr = dataRecieve,
             .MetaDataPtr = &PdusCollections[id],
@@ -323,6 +335,10 @@ char* GUIInterface_receive(uint8_t* rxId , uint8_t* finalRxLen)
             uint8_t AuthHeadlen = SecOCRxPduProcessing[id].SecOCRxSecuredPduLayer->SecOCRxSecuredPdu->SecOCAuthPduHeaderLength;
             *finalRxLen = (uint8_t) AuthHeadlen + authRecieveLength[id] + BIT_TO_BYTES(SecOCRxPduProcessing[id].SecOCFreshnessValueTruncLength) + BIT_TO_BYTES(SecOCRxPduProcessing[id].SecOCAuthInfoTruncLength);
         }
+    #else
+        *rxId = 0;
+        *finalRxLen = 0;
+        result = E_NOT_OK;
     #endif
     
     return errorString(result);
