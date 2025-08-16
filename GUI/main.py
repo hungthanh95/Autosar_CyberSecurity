@@ -1,5 +1,5 @@
-from PySide2 import QtWidgets
-from PySide2.QtGui import QPalette, QColor, Qt
+from PySide6 import QtWidgets
+from PySide6.QtGui import QPalette, QColor, Qt
 import sys
 
 from mydialog import MyDialog

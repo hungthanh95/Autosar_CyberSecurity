@@ -8,9 +8,9 @@
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
 
-from PySide2.QtCore import *
-from PySide2.QtGui import *
-from PySide2.QtWidgets import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
 
 from Custom_Widgets.AnalogGaugeWidget import AnalogGaugeWidget
 from qtexteditlogger import QTextEditLogger
@@ -159,7 +159,7 @@ class Ui_Dialog(object):
         font.setFamilies([u"Noto Color Emoji"])
         font.setPointSize(14)
         font.setBold(False)
-        font.setWeight(50)
+        font.setWeight(QFont.Normal)
         self.tlogger.setFont(font)
 
         self.verticalLayout_4.addWidget(self.tlogger)

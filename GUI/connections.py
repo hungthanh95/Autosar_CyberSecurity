@@ -276,22 +276,44 @@ class MyConnections:
         return authPdu , authLen
 
     def receiver(self):
-
+        import time
+        
         while(True):
-            rxId = c_int8()
-            rxLenString = c_int8()
-            finalRxLen = c_int8()
-            securedLen = c_int8()
+            try:
+                rxId = c_int8()
+                rxLenString = c_int8()
+                finalRxLen = c_int8()
+                securedLen = c_int8()
 
-            self.mylib.GUIInterface_receive(byref(rxId) , byref(finalRxLen))
-            self.current_rx_id = rxId.value
-            securedPdu = self.mylib.GUIInterface_getSecuredRxPDU(self.current_rx_id , byref(rxLenString) , byref(securedLen))
+                result = self.mylib.GUIInterface_receive(byref(rxId) , byref(finalRxLen))
+                
+                # Check if receive was successful (not busy/no data)
+                result_str = result.decode('utf-8') if result else "E_NOT_OK"
+                if result_str == "E_BUSY":
+                    # No data available, sleep briefly and continue
+                    time.sleep(0.1)
+                    continue
+                elif result_str != "E_OK":
+                    # Other error, sleep and continue
+                    time.sleep(0.5)
+                    continue
+                
+                self.current_rx_id = rxId.value
+                securedPdu = self.mylib.GUIInterface_getSecuredRxPDU(self.current_rx_id , byref(rxLenString) , byref(securedLen))
 
-            securedPdu = cast(securedPdu, POINTER(c_uint8))
+                securedPdu = cast(securedPdu, POINTER(c_uint8))
 
-            # # Create a a byte array with the returned address
-            securedPdu = (c_uint8 * securedLen.value).from_address(addressof(securedPdu.contents))
-            if securedLen.value >= finalRxLen.value:
+                # # Create a a byte array with the returned address
+                if securedLen.value > 0:
+                    securedPdu = (c_uint8 * securedLen.value).from_address(addressof(securedPdu.contents))
+                    if securedLen.value >= finalRxLen.value:
+                        # Update the Secured Payload in transmitter tab
+                        self.UpdateReceiverSecPayload()
+                        self.dialog.rlog.info("Received PDU 📩")
+                        
+            except Exception as e:
+                print(f"Receiver thread error: {e}")
+                time.sleep(1)  # Sleep on error to prevent spam
                 # Update the Secured Payload in transmitter tab
                 self.UpdateReceiverSecPayload()
                 self.dialog.rlog.info("Received PDU 📩")
