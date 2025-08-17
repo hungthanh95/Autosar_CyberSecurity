@@ -25,4 +25,7 @@
 
 Std_ReturnType CanIf_Transmit(PduIdType TxPduId,const PduInfoType* PduInfoPtr);
 
+// External function declaration
+extern Std_ReturnType ethernet_send(unsigned short id, unsigned char* data, unsigned char dataLen);
+
 #endif

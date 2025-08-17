@@ -27,6 +27,12 @@ class MyConnections:
 
         self.mylib = CDLL(str(lib))
 
+        # Configure function prototypes
+        self.mylib.GUIInterface_getSecuredPDU.restype = c_char_p
+        self.mylib.GUIInterface_getSecuredPDU.argtypes = [c_uint8, POINTER(c_int8)]
+        
+        self.mylib.GUIInterface_authenticate.restype = c_char_p
+        self.mylib.GUIInterface_authenticate.argtypes = [c_uint8, POINTER(c_ubyte), c_uint8]
 
         # Initializing SecOC
         self.mylib.GUIInterface_init()
@@ -60,16 +66,27 @@ class MyConnections:
     def UpdateTransmitterSecPayload(self):
         # preparing argument and return type for getsecuredPDU
         securedLen = c_int8()
-
         currentIndex = self.dialog.configSelect.currentIndex()
         secPdu = self.mylib.GUIInterface_getSecuredPDU(currentIndex, byref(securedLen))
 
-        # convert the char* to a Python string
-        my_bytes = string_at(secPdu, securedLen.value)
-        my_string = my_bytes.decode('utf-8')
+        # Check if PDU is valid before accessing
+        if securedLen.value <= 0 or not secPdu:
+            self.dialog.transmitPayload.setText("No secured PDU available")
+            return
 
-        # Update the Secured Payload in transmitter tab
-        self.dialog.transmitPayload.setText(my_string)
+        try:
+            # Since we set restype to c_char_p, secPdu is already a Python bytes object
+            if isinstance(secPdu, bytes):
+                my_string = secPdu.decode('utf-8')
+            else:
+                # Fallback if it's still a pointer - but this shouldn't happen with c_char_p
+                my_string = str(secPdu)
+            
+            # Update the Secured Payload in transmitter tab
+            self.dialog.transmitPayload.setText(my_string)
+        except Exception as e:
+            self.dialog.transmitPayload.setText(f"Error reading PDU: {e}")
+            print(f"Failed to read secured PDU: {e}")
     
     def UpdateReceiverSecPayload(self):
         # preparing argument and return type for getsecuredPDU
@@ -100,7 +117,7 @@ class MyConnections:
             self.dialog.alterFreshButton.setEnabled(False)
         else:
             self.dialog.alterFreshButton.setEnabled(True)
-        self.UpdateTransmitterSecPayload()                    
+        self.UpdateTransmitterSecPayload()
 
   
     def OnAccelButtonClicked(self):
@@ -147,7 +164,7 @@ class MyConnections:
     def OnShowTimeButtonClicked(self):
         self.dialog.tlog.debug("Show Time 🕗")
         # Get the current time as a string in the format "03:12 AM"
-        current_time_str =  '3' + datetime.datetime.now().strftime("%I:%M %p") + + 10 * "$"
+        current_time_str =  '3' + datetime.datetime.now().strftime("%I:%M %p") + 10 * "$"
 
         # Convert the string to a c_ubyte array
         data = struct.pack("{}s".format(len(current_time_str)), current_time_str.encode())
@@ -155,9 +172,19 @@ class MyConnections:
 
         # Generate Frame
         currentIndex = self.dialog.configSelect.currentIndex()
-        self.mylib.GUIInterface_authenticate(currentIndex, data, dataLen);
+        result_ptr = self.mylib.GUIInterface_authenticate(currentIndex, data, dataLen)
+        
+        # Convert the result pointer to string
+        try:
+            result_str = result_ptr.decode('utf-8') if result_ptr else "E_NOT_OK"
+            if result_str != "E_OK":
+                self.dialog.tlog.error(f"Authentication failed for Show Time: {result_str}")
+                return
+        except Exception as e:
+            self.dialog.tlog.error(f"Authentication error for Show Time: {e}")
+            return
 
-        self.UpdateTransmitterSecPayload() 
+        self.UpdateTransmitterSecPayload()
 
 
     def OnShowDateButtonClicked(self):
@@ -209,7 +236,7 @@ class MyConnections:
 
 
     def OnTlogClearButtonClicked(self):
-        self.dialog.tlogger.clear()                                             
+        self.dialog.tlogger.clear()
 
 
 ############ Receiver tab buttons #########################
