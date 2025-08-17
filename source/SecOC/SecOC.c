@@ -48,9 +48,6 @@ static PduLengthType bufferRemainIndex[SECOC_NUM_OF_TX_PDU_PROCESSING] = {0};
 STATIC PduLengthType authRecieveLength[SECOC_NUM_OF_RX_PDU_PROCESSING] = {0};
 
 
-//External function declarations
-extern void ethernet_ReceiveMainFunction(void);
-extern void SoAd_MainFunctionRx(void);
 
 /********************************************************************************************************/
 /************************************InternalFunctionsPrototype******************************************/
@@ -69,7 +66,11 @@ STATIC Std_ReturnType seperatePduCollectionTx(const PduIdType TxPduId,uint32 Aut
 /********************************************************************************************************/
 /******************************************Initialization************************************************/
 /********************************************************************************************************/
-
+/* Function: SecOC_Init
+ * Description: Initializes the the SecOC module. Successful initialization leads to state SecOC_INIT.
+ * Within SecOC_Init, the module shall initialize all internal global variables and the
+ * buffers of the SecOC I-PDUs
+ */
 void SecOC_Init(const SecOC_ConfigType *config)
 {
     #ifdef SECOC_DEBUG
@@ -82,16 +83,18 @@ void SecOC_Init(const SecOC_ConfigType *config)
 
     /* Increase all freshness counters to make it fresh */
     uint8 idx;
-    for (idx = 0 ; idx < SECOC_NUM_OF_TX_PDU_PROCESSING ; idx++) 
-    {      
+    for (idx = 0 ; idx < SECOC_NUM_OF_TX_PDU_PROCESSING ; idx++)
+    {
         FVM_IncreaseCounter(SecOCTxPduProcessing[idx].SecOCFreshnessValueId);
     }
 
     SecOCState = SECOC_INIT;
-    
-}                   
 
+}
 
+/* Function: SecOC_Init
+ * Description: Within SecOC_DeInit the module shall clear all internal global variables and the
+ * buffers of the SecOC I-PDUs*/
 void SecOC_DeInit(void)
 {
 
@@ -108,14 +111,14 @@ void SecOC_DeInit(void)
     /* [SWS_SecOC_00157] */
     /* Emptying Tx/Rx buffers */
     PduIdType idx;
-    for (idx = 0 ; idx < SECOC_NUM_OF_TX_PDU_PROCESSING; idx++) 
+    for (idx = 0 ; idx < SECOC_NUM_OF_TX_PDU_PROCESSING; idx++)
     {
 
         PduInfoType *authPdu = &(SecOCTxPduProcessing[idx].SecOCTxAuthenticPduLayer->SecOCTxAuthenticLayerPduRef);
         authPdu->SduLength = 0;
     }
 
-    for (idx = 0 ; idx < SECOC_NUM_OF_RX_PDU_PROCESSING; idx++) 
+    for (idx = 0 ; idx < SECOC_NUM_OF_RX_PDU_PROCESSING; idx++)
     {
 
         PduInfoType *securedPdu = &(SecOCRxPduProcessing[idx].SecOCRxSecuredPduLayer->SecOCRxSecuredPdu->SecOCRxSecuredLayerPduRef);
@@ -135,14 +138,14 @@ void SecOC_DeInit(void)
 /**********************************The creation of a Secured I-PDU***************************************/
 /********************************************************************************************************/
 
-Std_ReturnType SecOC_IfTransmit(PduIdType TxPduId, const PduInfoType* PduInfoPtr) 
+Std_ReturnType SecOC_IfTransmit(PduIdType TxPduId, const PduInfoType* PduInfoPtr)
 {
     #ifdef SECOC_DEBUG
         printf("######## in SecOC_IfTransmit \n");
     #endif
     Std_ReturnType result = E_OK;
     PduInfoType *authpdu = &(SecOCTxPduProcessing[TxPduId].SecOCTxAuthenticPduLayer->SecOCTxAuthenticLayerPduRef);
-    
+
     /* [SWS_SecOC_00252] The SecOC module shall copy the complete Authentic I-PDU to its internal memory before transmission */
     /* [SWS_SecOC_00110] Transmissions the upper layer shall overwrite the Authentic I-PDU without affecting the respective Secured I-PDU.*/
     (void)memcpy(authpdu->SduDataPtr, PduInfoPtr->SduDataPtr, PduInfoPtr->SduLength);
@@ -213,7 +216,7 @@ Std_ReturnType result = PTR(SecOCFreshnessValueID, SecOCFreshnessValue, SecOCFre
 
 
 Std_ReturnType SecOC_GetTxFreshnessTruncData (uint16 SecOCFreshnessValueID,uint8* SecOCFreshnessValue,
-uint32* SecOCFreshnessValueLength,uint8* SecOCTruncatedFreshnessValue,uint32* SecOCTruncatedFreshnessValueLength) 
+uint32* SecOCFreshnessValueLength,uint8* SecOCTruncatedFreshnessValue,uint32* SecOCTruncatedFreshnessValueLength)
 {
     #ifdef SECOC_DEBUG
         printf("######## in SecOC_GetTxFreshnessTruncData\n");
@@ -236,7 +239,7 @@ uint32* SecOCFreshnessValueLength,uint8* SecOCTruncatedFreshnessValue,uint32* Se
 * will query freshness data using SecOC_GetTxFreshness or   *
 * SecOC_GetTxFreshnessTruncData API based on configuration  *
 * and store it in Intermediate structure                    *
-************************************************************/                                         
+************************************************************/
 static Std_ReturnType prepareFreshnessTx(const PduIdType TxPduId, SecOC_TxIntermediateType *SecOCIntermediate)
 {
     #ifdef SECOC_DEBUG
@@ -291,10 +294,19 @@ static Std_ReturnType prepareFreshnessTx(const PduIdType TxPduId, SecOC_TxInterm
  * Function_Index       : SecOC internal                *
  * Parameter in         : TxPduId                       *
  * Parameter in         : AuthPdu                       *
- * Parameter out        : SecPdu                        * 
+ * Parameter out        : SecPdu                        *
  * Function_Descripton  : This function generates the   *
- * secured PDU using authenticator, payload, freshness  * 
+ * secured PDU using authenticator, payload, freshness  *
  *  value                                               *
+ * The creation of a Secured I-PDU and thus the         *
+ * authentication of an Authentic IPDUconsists of the   *
+ * following six steps:                                 *
+ *1. Prepare Secured I-PDU                              *
+ *2. Construct Data for Authenticator                   *
+ *3. Generate Authenticator                             *
+ *4. Construct Secured I-PDU                            *
+ *5. Increment Freshness Counter                        *
+ *6. Broadcast Secured I-PDU                            *
  *******************************************************/
 STATIC Std_ReturnType authenticate(const PduIdType TxPduId, PduInfoType* AuthPdu, PduInfoType* SecPdu)
 {
@@ -345,9 +357,9 @@ STATIC Std_ReturnType authenticate(const PduIdType TxPduId, PduInfoType* AuthPdu
     {
         /* [SWS_SecOC_00261] The Secured I-PDU Header shall indicate the length of the Authentic I-PDU in bytes */
         (void)memcpy(&SecPdu->SduDataPtr[SecPduLen], &AuthPdu->SduLength, headerLen);
-        SecPduLen += headerLen;        
+        SecPduLen += headerLen;
     }
-    
+
     /* AuthPdu */
     (void)memcpy(&SecPdu->SduDataPtr[SecPduLen], AuthPdu->SduDataPtr, AuthPdu->SduLength);
     SecPduLen += AuthPdu->SduLength;
@@ -434,7 +446,7 @@ STATIC Std_ReturnType seperatePduCollectionTx(const PduIdType TxPduId,uint32 Aut
     return E_OK;
 }
 
-void SecOC_MainFunctionTx(void) 
+void SecOC_MainFunctionTx(void)
 {
     #ifdef SECOC_DEBUG
         printf("######## in SecOCMainFunctionTx \n");
@@ -444,10 +456,10 @@ void SecOC_MainFunctionTx(void)
     {
         return;
     }
-        
+
     PduIdType idx , authPduId , cryptoPduId;
     Std_ReturnType result;
-    for (idx = 0 ; idx < SECOC_NUM_OF_TX_PDU_PROCESSING ; idx++) 
+    for (idx = 0 ; idx < SECOC_NUM_OF_TX_PDU_PROCESSING ; idx++)
     {
         PduInfoType *authPdu = &(SecOCTxPduProcessing[idx].SecOCTxAuthenticPduLayer->SecOCTxAuthenticLayerPduRef);
         PduInfoType *securedPdu = &(SecOCTxPduProcessing[idx].SecOCTxSecuredPduLayer->SecOCTxSecuredPdu->SecOCTxSecuredLayerPduRef);
@@ -457,7 +469,7 @@ void SecOC_MainFunctionTx(void)
 
         /* Check if there is data */
         /* [SWS_SecOC_00179] */
-        if (authPdu->SduLength > 0) 
+        if (authPdu->SduLength > 0)
         {
             uint32 AuthPduLen = authPdu->SduLength;
             #ifdef SECOC_DEBUG
@@ -473,7 +485,7 @@ void SecOC_MainFunctionTx(void)
 
             if(result == E_OK )
             {
-                #ifdef PDU_COLLECTION_DEBUG  
+                #ifdef PDU_COLLECTION_DEBUG
                     printf("Secured data in pdu collection %d ",idx);
                     for(int k = 0; k < securedPdu->SduLength; k++)
                     {
@@ -481,7 +493,7 @@ void SecOC_MainFunctionTx(void)
                     }
                     printf("\n");
                 #endif
-                /* Using Freshness Value Based on Single Freshness Counter we need to keep it synchronise 
+                /* Using Freshness Value Based on Single Freshness Counter we need to keep it synchronise
                     increase counter before Broadcast as require */
                 /*[SWS_SecOC_00031]*/
                 FVM_IncreaseCounter(SecOCTxPduProcessing[idx].SecOCFreshnessValueId);
@@ -492,8 +504,8 @@ void SecOC_MainFunctionTx(void)
                     AuthPduCollection = &(SecOCTxPduProcessing[idx].SecOCTxSecuredPduLayer->SecOCTxSecuredPduCollection->SecOCTxAuthenticPdu->SecOCTxAuthenticPduRef);
                     CryptoPduCollection = &(SecOCTxPduProcessing[idx].SecOCTxSecuredPduLayer->SecOCTxSecuredPduCollection->SecOCTxCryptographicPdu->SecOCTxCryptographicPduRef);
                     seperatePduCollectionTx(idx, AuthPduLen , securedPdu , AuthPduCollection , CryptoPduCollection , &authPduId , &cryptoPduId);
-                    
-                    
+
+
                     /* [SWS_SecOC_00062] [SWS_SecOC_00202]*/
                     PduR_SecOCTransmit(authPduId , AuthPduCollection);
                     PduR_SecOCTransmit(cryptoPduId , CryptoPduCollection);
@@ -523,7 +535,7 @@ void SecOC_MainFunctionTx(void)
             }
             else /* result == E_NOT_OK */
             {
-                authPdu->SduLength = 0;                
+                authPdu->SduLength = 0;
             }
         }
     }
@@ -542,7 +554,7 @@ const RetryInfoType* retry, PduLengthType* availableDataPtr)
     /* - Check if there is data in the buffer to be copy */
     if(securedPdu->SduLength > 0)
     {
-        /*  If not enough transmit data is available, no data is copied by the upper layer module 
+        /*  If not enough transmit data is available, no data is copied by the upper layer module
         and BUFREQ_E_BUSY is returned */
         if(info->SduLength <= remainingBytes)
         {
@@ -559,7 +571,7 @@ const RetryInfoType* retry, PduLengthType* availableDataPtr)
                     {
                         case TP_DATACONF:
 
-                            /* indicates that all data that has been copied before this call is confirmed and 
+                            /* indicates that all data that has been copied before this call is confirmed and
                             can be removed from the TP buffer. Data copied by this API call is excluded and will be confirmed later */
                             (void)memcpy(info->SduDataPtr, securedPdu->SduDataPtr + bufferRemainIndex[id], info->SduLength);
                             bufferRemainIndex[id] += info->SduLength;
@@ -571,13 +583,13 @@ const RetryInfoType* retry, PduLengthType* availableDataPtr)
                             (void)memcpy(info->SduDataPtr, securedPdu->SduDataPtr + bufferRemainIndex[id] - info->SduLength, info->SduLength);
                             break;
                         case TP_DATARETRY:
-                            /* indicates that this API call shall copy previously copied data in order to recover from an error. 
+                            /* indicates that this API call shall copy previously copied data in order to recover from an error.
                             In this case TxTpDataCnt specifies the offset in bytes from the current data copy position */
                             (void)memcpy(info->SduDataPtr, securedPdu->SduDataPtr + bufferRemainIndex[id] - retry->TxTpDataCnt, info->SduLength);
                             break;
                         default:
                             result = BUFREQ_E_NOT_OK;
-                        break;  
+                        break;
                     }
                 }
                 else
@@ -609,12 +621,12 @@ const RetryInfoType* retry, PduLengthType* availableDataPtr)
 }
 
 
-void SecOC_TxConfirmation(PduIdType TxPduId, Std_ReturnType result) 
+void SecOC_TxConfirmation(PduIdType TxPduId, Std_ReturnType result)
 {
     #ifdef SECOC_DEBUG
         printf("######## in SecOC_TxConfirmation \n");
     #endif
-    
+
     PduInfoType *securedPdu;
     PduInfoType *AuthPduCollection;
     PduInfoType *CryptoPduCollection;
@@ -673,7 +685,7 @@ void SecOC_TxConfirmation(PduIdType TxPduId, Std_ReturnType result)
     {
         /* [SWS_SecOC_00064] */
         securedPdu = &(SecOCTxPduProcessing[TxPduId].SecOCTxSecuredPduLayer->SecOCTxSecuredPdu->SecOCTxSecuredLayerPduRef);
-        if (result == E_OK) 
+        if (result == E_OK)
         {
             securedPdu->SduLength = 0;
         }
@@ -722,7 +734,7 @@ Std_ReturnType SecOC_IfCancelTransmit(PduIdType TxPduId)
     Std_ReturnType result = E_OK;
 
     PduInfoType *authpdu = &(SecOCTxPduProcessing[TxPduId].SecOCTxAuthenticPduLayer->SecOCTxAuthenticLayerPduRef);
-    
+
     authpdu->SduLength = 0;
     return result;
 }
@@ -735,12 +747,12 @@ Std_ReturnType SecOC_IfCancelTransmit(PduIdType TxPduId)
 /********************************************************************************************************/
 
 void SecOC_RxIndication(PduIdType RxPduId, const PduInfoType* PduInfoPtr)
-{   
+{
     #ifdef SECOC_DEBUG
         printf("######## in SecOC_RxIndication \n");
     #endif
     /* [SWS_SecOC_00124] */
-    
+
 
     uint8 headerLen , authLen;
     if(PdusCollections[RxPduId].Type == SECOC_AUTH_COLLECTON_PDU || PdusCollections[RxPduId].Type == SECOC_CRYPTO_COLLECTON_PDU)
@@ -750,15 +762,15 @@ void SecOC_RxIndication(PduIdType RxPduId, const PduInfoType* PduInfoPtr)
         PduInfoType *CryptoPduCollection;
         PduIdType pduCollectionId;
         pduCollectionId = PdusCollections[RxPduId].CollectionId;
-        
+
         AuthPduCollection = &(SecOCRxPduProcessing[pduCollectionId].SecOCRxSecuredPduLayer->SecOCRxSecuredPduCollection->SecOCRxAuthenticPdu->SecOCRxAuthenticPduRef);
         CryptoPduCollection = &(SecOCRxPduProcessing[pduCollectionId].SecOCRxSecuredPduLayer->SecOCRxSecuredPduCollection->SecOCRxCryptographicPdu->SecOCRxCryptographicPduRef);
 
         securedPdu = &(SecOCRxPduProcessing[pduCollectionId].SecOCRxSecuredPduLayer->SecOCRxSecuredPdu->SecOCRxSecuredLayerPduRef);
-        
+
         if(PdusCollections[RxPduId].Type == SECOC_AUTH_COLLECTON_PDU && securedPdu->SduLength == 0)
         {
-            
+
             /* AuthPduCollection */
             headerLen = SecOCRxPduProcessing[pduCollectionId].SecOCRxSecuredPduLayer->SecOCRxSecuredPdu->SecOCAuthPduHeaderLength;
             (void)memcpy(&authLen, &PduInfoPtr->SduDataPtr[0] ,headerLen);
@@ -780,14 +792,14 @@ void SecOC_RxIndication(PduIdType RxPduId, const PduInfoType* PduInfoPtr)
         {
             uint16 messageLinkLen = SecOCRxPduProcessing[pduCollectionId].SecOCRxSecuredPduLayer->SecOCRxSecuredPduCollection->SecOCUseMessageLink->SecOCMessageLinkLen;
             uint16 messageLinkPos = SecOCRxPduProcessing[pduCollectionId].SecOCRxSecuredPduLayer->SecOCRxSecuredPduCollection->SecOCUseMessageLink->SecOCMessageLinkPos;
-            
+
             /* AuthPduCollection */
             (void)memcpy(securedPdu->SduDataPtr,AuthPduCollection->SduDataPtr,AuthPduCollection->SduLength);
             securedPdu->SduLength+=AuthPduCollection->SduLength;
 
             /* CryptoPduCollection */
             (void)memcpy(&(securedPdu->SduDataPtr[securedPdu->SduLength]),CryptoPduCollection->SduDataPtr, (CryptoPduCollection->SduLength)-messageLinkLen);
-            
+
             securedPdu->SduLength+=(CryptoPduCollection->SduLength)-messageLinkLen;
             AuthPduCollection->SduLength = 0;
             CryptoPduCollection->SduLength = 0;
@@ -825,10 +837,10 @@ void SecOC_RxIndication(PduIdType RxPduId, const PduInfoType* PduInfoPtr)
         {
             securedPdu->SduLength = MIN(PduInfoPtr->SduLength, SECOC_SECPDU_MAX_LENGTH);
         }
-        
+
         /* [SWS_SecOC_00234], [SWS_SecOC_00235] */
         SecOC_RxCounters[RxPduId].AuthenticationCounter = 0;
-        SecOC_RxCounters[RxPduId].VerificationCounter = 0; 
+        SecOC_RxCounters[RxPduId].VerificationCounter = 0;
     }
 }
 
@@ -865,7 +877,7 @@ BufReq_ReturnType SecOC_StartOfReception ( PduIdType id, const PduInfoType* info
     {
         if((info->SduDataPtr != NULL))
         {
-            /* [SWS_SecOC_00263] check if dynamic*/            
+            /* [SWS_SecOC_00263] check if dynamic*/
             if(AuthHeadlen > 0)
             {
                 (void)memcpy((uint8*)&datalen, info->SduDataPtr, AuthHeadlen );
@@ -881,7 +893,7 @@ BufReq_ReturnType SecOC_StartOfReception ( PduIdType id, const PduInfoType* info
             }
         }
     }
-        
+
     if(SecOCRxPduProcessing[id].SecOCRxAuthenticPduLayer->SecOCPduType==SECOC_TPPDU)
     {
         /* [SWS_SecOC_00082] */
@@ -901,7 +913,7 @@ BufReq_ReturnType SecOC_CopyRxData (PduIdType id, const PduInfoType* info, PduLe
         printf("######## in SecOC_CopyRxData \n");
     #endif
     BufReq_ReturnType result = BUFREQ_OK;
-    
+
     /* Create a pointer to the secured I-PDU buffer that we will store the data into it */
     /* [SWS_SecOC_00082] */
     PduInfoType *securedPdu = &(SecOCRxPduProcessing[id].SecOCRxSecuredPduLayer->SecOCRxSecuredPdu->SecOCRxSecuredLayerPduRef);
@@ -966,7 +978,7 @@ static void parseSecuredPdu(PduIdType RxPduId, PduInfoType* SecPdu, SecOC_RxInte
         printf("######## in parseSecuredPdu \n");
     #endif
     /* Track the current byte of secured to be parsed */
-    uint32 SecCursor = 0;  
+    uint32 SecCursor = 0;
 
     /* Get data length from configuration or header if found */
     uint32 headerLen = SecOCRxPduProcessing[RxPduId].SecOCRxSecuredPduLayer->SecOCRxSecuredPdu->SecOCAuthPduHeaderLength;
@@ -988,20 +1000,20 @@ static void parseSecuredPdu(PduIdType RxPduId, PduInfoType* SecPdu, SecOC_RxInte
     SecCursor += SecOCIntermediate->authenticPduLen;
 
     uint16 authVeriAttempts = 0;
-    /* Get Rx freshness from FVM using the truncated freshness in SecPdu */ 
+    /* Get Rx freshness from FVM using the truncated freshness in SecPdu */
     const uint8* SecOCTruncatedFreshnessValue = &SecPdu->SduDataPtr[SecCursor];
     uint32 SecOCTruncatedFreshnessValueLength = SecOCRxPduProcessing[RxPduId].SecOCFreshnessValueTruncLength;
     SecOCIntermediate->freshnessLenBits = SecOCRxPduProcessing[RxPduId].SecOCFreshnessValueLength;
-    
+
     /* init freshness in struct SecOCIntermediate with 0 */
     (void)memset(SecOCIntermediate->freshness, 0, sizeof(SecOCIntermediate->freshness));
     /* [SWS_SecOC_00250] */
     SecOCIntermediate->freshnessResult = SecOC_GetRxFreshness(
             SecOCRxPduProcessing[RxPduId].SecOCFreshnessValueId,
-            SecOCTruncatedFreshnessValue, 
-            SecOCTruncatedFreshnessValueLength, 
+            SecOCTruncatedFreshnessValue,
+            SecOCTruncatedFreshnessValueLength,
             authVeriAttempts,
-            SecOCIntermediate->freshness, 
+            SecOCIntermediate->freshness,
             &SecOCIntermediate->freshnessLenBits
     );
 
@@ -1047,7 +1059,7 @@ static void constructDataToAuthenticatorRx(PduIdType RxPduId, SecOC_RxIntermedia
     *DataToAuthLen = 0;
 	/* Copy the Id to buffer Data to Auth */
     (void)memcpy(&DataToAuth[*DataToAuthLen], &SecOCRxPduProcessing[RxPduId].SecOCDataId, sizeof(SecOCRxPduProcessing[RxPduId].SecOCDataId));
-    *DataToAuthLen += sizeof(SecOCRxPduProcessing[RxPduId].SecOCDataId);	
+    *DataToAuthLen += sizeof(SecOCRxPduProcessing[RxPduId].SecOCDataId);
 
 
     /* copy the authenticPdu to buffer DatatoAuth */
@@ -1138,7 +1150,7 @@ STATIC Std_ReturnType verify(PduIdType RxPduId, PduInfoType* SecPdu, SecOC_Verif
             {
                 *verification_result = SECOC_VERIFICATIONFAILURE;
             }
-            
+
             return Mac_verify;
         }
     }
@@ -1179,18 +1191,18 @@ void SecOC_MainFunctionRx(void)
     PduIdType idx = 0;
     SecOC_VerificationResultType result_ver;
     Std_ReturnType result;
-    for (idx = 0 ; idx < SECOC_NUM_OF_RX_PDU_PROCESSING; idx++) 
+    for (idx = 0 ; idx < SECOC_NUM_OF_RX_PDU_PROCESSING; idx++)
     {
         PduInfoType *authPdu = &(SecOCRxPduProcessing[idx].SecOCRxAuthenticPduLayer->SecOCRxAuthenticLayerPduRef);
         PduInfoType *securedPdu = &(SecOCRxPduProcessing[idx].SecOCRxSecuredPduLayer->SecOCRxSecuredPdu->SecOCRxSecuredLayerPduRef);
-        
+
         uint8 AuthHeadlen = SecOCRxPduProcessing[idx].SecOCRxSecuredPduLayer->SecOCRxSecuredPdu->SecOCAuthPduHeaderLength;
         PduLengthType securePduLength = AuthHeadlen + authRecieveLength[idx] + BIT_TO_BYTES(SecOCRxPduProcessing[idx].SecOCFreshnessValueTruncLength) + BIT_TO_BYTES(SecOCRxPduProcessing[idx].SecOCAuthInfoTruncLength);
-        
+
         /* Check if there is data */
         /* [SWS_SecOC_00174] */
-        if ( securedPdu->SduLength >= securePduLength ) 
-        {       
+        if ( securedPdu->SduLength >= securePduLength )
+        {
             /* [SWS_SecOC_00079] */
             result = verify(idx, securedPdu, &result_ver);
             if(result == E_OK)
@@ -1206,7 +1218,7 @@ void SecOC_MainFunctionRx(void)
             {
                 /* [SWS_SecOC_00236], [SWS_SecOC_00237]*/
                 SecOC_RxCounters[idx].AuthenticationCounter++;
-            
+
                 #ifdef COUNTERS_DEBUG
                 (void)printf("SecOC_RxCounters[%d].AuthenticationCounter = %d\n",idx,SecOC_RxCounters[idx].AuthenticationCounter);
                 (void)printf("SecOCRxPduProcessing[%d].SecOCAuthenticationBuildAttempts = %d\n",idx,SecOCRxPduProcessing[idx].SecOCAuthenticationBuildAttempts);
@@ -1222,7 +1234,7 @@ void SecOC_MainFunctionRx(void)
             else if ( (result == CRYPTO_E_KEY_NOT_VALID) || (result == CRYPTO_E_KEY_EMPTY) )
             {
                 /* [SWS_SecOC_00239] */
-                SecOC_RxCounters[idx].AuthenticationCounter = 0; 
+                SecOC_RxCounters[idx].AuthenticationCounter = 0;
                 SecOC_RxCounters[idx].VerificationCounter++;
 
                 #ifdef COUNTERS_DEBUG
@@ -1243,7 +1255,7 @@ void SecOC_MainFunctionRx(void)
                 printf("Reason: %s\n", (result_ver == SECOC_FRESHNESSFAILURE) ? "FV" : "MAC");
                 #endif
                 /* [SWS_SecOC_00256] */
-                securedPdu->SduLength = 0;          
+                securedPdu->SduLength = 0;
             }
         }
     }
@@ -1271,7 +1283,7 @@ void SecOC_test()
         SoAd_MainFunctionRx();
         SecOC_MainFunctionRx();
     }
-    
+
 }
 #endif
 

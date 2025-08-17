@@ -52,8 +52,13 @@ uint8 countSizeBits(const uint8* arrayBytes, uint8 maxSize)
     return length;
 }
 
-
-Std_ReturnType FVM_IncreaseCounter(uint16 SecOCFreshnessValueID) {  
+/* Increase the Freshness Counter by 1
+        if the counter is full it will increase the next byte
+        and reset the current byte to 0
+        return E_OK if success
+[UC_SecOC_00200]
+*/
+Std_ReturnType FVM_IncreaseCounter(uint16 SecOCFreshnessValueID) {
     #ifdef FV_DEBUG
         printf("######## FVM_IncreaseCounter for id %d\n", SecOCFreshnessValueID);
     #endif
@@ -68,7 +73,7 @@ Std_ReturnType FVM_IncreaseCounter(uint16 SecOCFreshnessValueID) {
             break;
         }
     }
-    
+
     /* Calculate the Number of bits in the Counter */
     Freshness_Counter_length[SecOCFreshnessValueID] = countSizeBits(Freshness_Counter[SecOCFreshnessValueID], maxIndex);
     return E_OK;
@@ -78,7 +83,7 @@ Std_ReturnType FVM_IncreaseCounter(uint16 SecOCFreshnessValueID) {
 Std_ReturnType FVM_UpdateCounter(uint16 SecOCFreshnessValueID, uint8* SecOCFreshnessValue,
 uint32 SecOCFreshnessValueLength)
 {
-    uint32 freshnessCounterIndex; 
+    uint32 freshnessCounterIndex;
     uint32 SecOCFreshnessValueLengthBytes = BIT_TO_BYTES(SecOCFreshnessValueLength);
     (void)memcpy(Freshness_Counter[SecOCFreshnessValueID], SecOCFreshnessValue, SecOCFreshnessValueLengthBytes);
     /* Calculate the Number of bits in the Counter */

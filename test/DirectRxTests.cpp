@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-extern "C" {    
+extern "C" {
 
 #include "SecOC_Lcfg.h"
 #include "SecOC_Cfg.h"
@@ -46,7 +46,7 @@ TEST(AuthenticationTests, directRx)
     uint8 authPduCheck[] = {100,200};
 
 
-    #ifdef __linux__
+    #if defined(__linux__) || defined(_WIN32)
 
         #define BUS_LENGTH_RECEIVE 8
         static uint8 dataRecieve [BUS_LENGTH_RECEIVE];
@@ -64,10 +64,10 @@ TEST(AuthenticationTests, directRx)
 
 
         PduR_CanIfRxIndication(id, &PduInfoPtr);
-        
+
 
     #endif
-    
+
 
 
 
@@ -77,13 +77,13 @@ TEST(AuthenticationTests, directRx)
 
     PduInfoType *authPdu = &(SecOCRxPduProcessing[idx].SecOCRxAuthenticPduLayer->SecOCRxAuthenticLayerPduRef);
     PduInfoType *securedPdu = &(SecOCRxPduProcessing[idx].SecOCRxSecuredPduLayer->SecOCRxSecuredPdu->SecOCRxSecuredLayerPduRef);
-    
+
     uint8 AuthHeadlen = SecOCRxPduProcessing[idx].SecOCRxSecuredPduLayer->SecOCRxSecuredPdu->SecOCAuthPduHeaderLength;
     PduLengthType securePduLength = AuthHeadlen + authRecieveLength[idx] + BIT_TO_BYTES(SecOCRxPduProcessing[idx].SecOCFreshnessValueTruncLength) + BIT_TO_BYTES(SecOCRxPduProcessing[idx].SecOCAuthInfoTruncLength);
-    
+
     ASSERT_GE( securedPdu->SduLength , securePduLength);
     ASSERT_EQ(memcmp(securedPdu->SduDataPtr , securedPduCheck, securedPdu->SduLength), 0);
-    
+
 
     result = verify(idx, securedPdu, &result_ver);
 
@@ -95,5 +95,5 @@ TEST(AuthenticationTests, directRx)
     ASSERT_EQ(memcmp(authPdu->SduDataPtr , authPduCheck, authPdu->SduLength), 0);
 
 
-    PduR_SecOCIfRxIndication(idx,  authPdu);    
+    PduR_SecOCIfRxIndication(idx,  authPdu);
 }

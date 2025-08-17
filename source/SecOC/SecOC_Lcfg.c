@@ -115,7 +115,7 @@ SecOC_MainFunctionRxType SecOCMainFunctionRx =
 
 
 
-SecOC_GeneralType SecOC_General = 
+SecOC_GeneralType SecOC_General =
 {
     SECOC_DEFAULT_AUTHENTICATION_INFORMATION_PATTERN_VALUE,
     SECOC_DEV_ERROR_DETECT,

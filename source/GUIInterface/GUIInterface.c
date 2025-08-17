@@ -58,6 +58,9 @@ void GUIInterface_init()
 
 char* GUIInterface_authenticate(uint8_t configId, uint8_t *data, uint8_t len)
 {
+    #ifdef ETHERNET_DEBUG
+        printf("######## in GUIInterface_authenticate \n");
+    #endif
 
     PduInfoType *authPdu = &(SecOCTxPduProcessing[configId].SecOCTxAuthenticPduLayer->SecOCTxAuthenticLayerPduRef);
     PduInfoType *securedPdu = &(SecOCTxPduProcessing[configId].SecOCTxSecuredPduLayer->SecOCTxSecuredPdu->SecOCTxSecuredLayerPduRef);
@@ -65,17 +68,23 @@ char* GUIInterface_authenticate(uint8_t configId, uint8_t *data, uint8_t len)
     /* [SWS_SecOC_00226], [SWS_SecOC_00225] */
     SecOC_TxCounters[configId].AuthenticationCounter = 0;
 
-
-    // Creating te Authentic PDU
+    // Creating the Authentic PDU
     memcpy(authPdu->SduDataPtr, data, len);
     authPdu->SduLength = len;
+
+    // Initialize secured PDU length to 0 before authentication
+    securedPdu->SduLength = 0;
 
     Std_ReturnType result;
     result = authenticate(configId , authPdu , securedPdu);
     authPdu->SduLength = len;
 
-    return errorString(result);
+    #ifdef ETHERNET_DEBUG
+        printf("result of authenticate is %d\n", result);
+        printf("secured PDU length after authenticate: %d\n", securedPdu->SduLength);
+    #endif
 
+    return errorString(result);
 }
 
 char* GUIInterface_verify(uint8_t configId)
@@ -105,6 +114,21 @@ char* GUIInterface_getSecuredPDU(uint8_t configId, uint8_t *len)
 
     static char securedStr[100]; /* Static to be passed to the python program*/
 
+    #ifdef ETHERNET_DEBUG
+        printf("GUIInterface_getSecuredPDU: configId=%d, SduLength=%d, SduDataPtr=%p\n", 
+               configId, securedPdu->SduLength, securedPdu->SduDataPtr);
+    #endif
+
+    // Check if PDU is empty or invalid
+    if (*len == 0 || securedPdu->SduDataPtr == NULL) {
+        strcpy(securedStr, "PDU is empty");
+        *len = strlen(securedStr);
+        #ifdef ETHERNET_DEBUG
+            printf("GUIInterface_getSecuredPDU: PDU is empty, returning default message\n");
+        #endif
+        return securedStr;
+    }
+
     uint8_t headerIdx = SecOCTxPduProcessing[configId].SecOCTxSecuredPduLayer->SecOCTxSecuredPdu->SecOCAuthPduHeaderLength;
     uint8_t authIdx = *len - BIT_TO_BYTES(SecOCTxPduProcessing[configId].SecOCAuthInfoTruncLength);
     uint8_t freshIdx = authIdx - BIT_TO_BYTES(SecOCTxPduProcessing[configId].SecOCFreshnessValueTruncLength);
@@ -121,6 +145,10 @@ char* GUIInterface_getSecuredPDU(uint8_t configId, uint8_t *len)
     securedStr[stri] = '\0';
 
     *len = stri; /* Updated the length to match the created string */
+    
+    #ifdef ETHERNET_DEBUG
+        printf("GUIInterface_getSecuredPDU: returning string of length %d: %s\n", *len, securedStr);
+    #endif
     
     return securedStr;
 }

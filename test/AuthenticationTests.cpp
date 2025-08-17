@@ -28,7 +28,7 @@ extern Std_ReturnType authenticate(const PduIdType TxPduId, PduInfoType* AuthPdu
 
 
 
-/* This Function Use to made authenticate 
+/* This Function Use to made authenticate
         1- Get Freshness
         2- Construct Data to authenticate
         3- generate the MAC
@@ -38,7 +38,7 @@ extern Std_ReturnType authenticate(const PduIdType TxPduId, PduInfoType* AuthPdu
 TEST(AuthenticationTests, authenticate1)
 {
     SecOC_Init(&SecOC_Config);
-    /* Secuss for id 0
+    /* Secure for id 0
         direct with header
     */
     PduIdType TxPduId = 0;
@@ -57,11 +57,17 @@ TEST(AuthenticationTests, authenticate1)
 
     Std_ReturnType Result = authenticate(TxPduId, &AuthPdu, &SecPdu);
 
+    /* AuthPdu */
+        /* Header + Authdata
+            2       100/200  */
+
+    /* SecPdu */
+    /* Header + Authdata + Freshness + MAC
+        2       100/200        1          82/0/112/115*/
     EXPECT_EQ(Result, E_OK);
 
     /* Header + Authdata + Freshness + MAC
         2       100/200        1          82/0/112/115*/
-
     uint8 buffVerfySecure [100] = {2,100, 200, 1, 196,200,222,153};
 
     for(int i = 0; i < SecPdu.SduLength; i++)
